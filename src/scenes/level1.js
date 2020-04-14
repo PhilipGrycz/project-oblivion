@@ -64,6 +64,8 @@ export default class Level1Scene extends Phaser.Scene {
   }
 
   create () {
+    this.difficulty = window.game.difficulty
+
     this.add.image(0, 0, 'background').setOrigin(0, 0).setScrollFactor(1)
 
     this.add.image(260, 173, 'hud').setOrigin(0, 0).setScrollFactor(0).setDisplaySize(165, 20)
@@ -290,6 +292,7 @@ export default class Level1Scene extends Phaser.Scene {
       enemy.health = 10
 
       if (movementType === 'stationary_shooter') {
+        enemy.health = this.difficulty * 2 + 8
         const attackTrigger = this.physics.add.staticImage(x - 184, y + 8, 'ground')
         attackTrigger.setOrigin(0, 0)
         attackTrigger.setSize(20, 100)
@@ -303,7 +306,7 @@ export default class Level1Scene extends Phaser.Scene {
             setTimeout(() => {
               // create and shoot bullet
               const bullet = this.bullets.create(enemy.x - 8, enemy.y + 3, 'bullet')
-              bullet.setVelocityX(-25).setOrigin(0, 0).setGravityY(-298)
+              bullet.setVelocityX(-15 - this.difficulty * 50).setOrigin(0, 0).setGravityY(-298)
 
               this.sound.play('dryad_shot_sound')
 
@@ -316,7 +319,7 @@ export default class Level1Scene extends Phaser.Scene {
                 }
               }, 10000)
             }, 800)
-          }, 5000)
+          }, 5000 - this.difficulty * 1000)
         }
 
         this.physics.add.collider(this.player, attackTrigger, () => {
@@ -327,34 +330,33 @@ export default class Level1Scene extends Phaser.Scene {
 
       // movement
       if (movementType === 'flyer') {
-        enemy.health = 5
-        enemy.setVelocityX(50)
+        const followVelocity = this.difficulty * 20 + 80
+        enemy.health = this.difficulty * 2 + 3
+        enemy.setVelocityX(this.difficulty * 20 + 40)
         enemy.anims.play('flying_enemy_right')
       }
 
       if (movementType === 'trigger') {
         if (imageType === 'biglegs_enemy') {
+          enemy.setScale(1.2, 1.2)
           enemy.setBounceY(0.4)
           enemy.anims.play('biglegs_enemy_idle')
-          const outerTrigger = this.physics.add.staticImage(x - 100, y - 130, 'ground')
-          outerTrigger.setOrigin(0, 0)
-          outerTrigger.setSize(400, 200)
-
           enemy.followPlayer = () => {
+            const followVelocity = this.difficulty * 20 + 80
             enemy.isJumping = false
             enemy.anims.play('biglegs_enemy_fly')
 
             const playerIsOnRight = this.player.body.x > enemy.x
-            enemy.setVelocityX(playerIsOnRight ? 100 : -100)
-            enemy.setScale(playerIsOnRight ? -1 : 1, 1)
+            enemy.setVelocityX(playerIsOnRight ? followVelocity : -followVelocity)
+            enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
             enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
             // keep refreshing player's position and follow player in correct direction
             const followInterval = setInterval(() => {
               if (!enemy.isJumping) {
                 // only follow if is not jumping
                 const playerIsOnRight = this.player.body.x > enemy.x
-                enemy.setVelocityX(playerIsOnRight ? 100 : -100)
-                enemy.setScale(playerIsOnRight ? -1 : 1, 1)
+                enemy.setVelocityX(playerIsOnRight ? followVelocity : -followVelocity)
+                enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
                 enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
               } else {
                 clearInterval(followInterval) // stop interval
@@ -365,25 +367,26 @@ export default class Level1Scene extends Phaser.Scene {
             enemy.anims.play('biglegs_enemy_jump')
             enemy.isJumping = true
             const playerIsOnRight = this.player.body.x > enemy.x
+            const atackVelocity = this.difficulty * 100 + 100
 
-            enemy.setScale(playerIsOnRight ? -1 : 1, 1)
+            enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
             enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
             // jump up
             enemy.setGravityY(-600)
-            enemy.setVelocityX(playerIsOnRight ? 200 : -200)
-            enemy.setScale(playerIsOnRight ? -1 : 1, 1)
+            enemy.setVelocityX(playerIsOnRight ? atackVelocity : -atackVelocity)
+            enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
             // move side in the air and down (using natural gravity)
             setTimeout(() => {
               enemy.setGravityY(-300)
-              enemy.setVelocityX(playerIsOnRight ? 200 : -200)
-              enemy.setScale(playerIsOnRight ? -1 : 1, 1)
+              enemy.setVelocityX(playerIsOnRight ? atackVelocity : -atackVelocity)
+              enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
               enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
             }, 500)
             // set normal gravity
             setTimeout(() => {
               enemy.setGravityY(0)
-              enemy.setVelocityX(playerIsOnRight ? 200 : -200)
-              enemy.setScale(playerIsOnRight ? -1 : 1, 1)
+              enemy.setVelocityX(playerIsOnRight ? atackVelocity : -atackVelocity)
+              enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
               enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
               enemy.followPlayer()
             }, 700)
@@ -393,10 +396,15 @@ export default class Level1Scene extends Phaser.Scene {
             }, 7000)
           }
 
-          this.physics.add.collider(this.player, outerTrigger, () => {
-            outerTrigger.destroy()
-            enemy.doAttack()
-          }, null, this)
+          setTimeout(() => { // wait 4 seconds to let the enemy settle before creating the trigger
+            const outerTrigger = this.physics.add.staticImage(enemy.x - 100, enemy.y, 'ground')
+            outerTrigger.setOrigin(0, 0)
+            outerTrigger.setSize(400, 200)
+            this.physics.add.collider(this.player, outerTrigger, () => {
+              outerTrigger.destroy()
+              enemy.doAttack()
+            }, null, this)
+          }, 4000)
         }
       }
 
@@ -422,6 +430,12 @@ export default class Level1Scene extends Phaser.Scene {
 
     if (enemy.movementType === 'stationary_shooter') {
       // nothing
+    }
+
+    if (enemy.movementType === 'trigger') {
+      if (enemy.body.touching.up && ground.body.touching.down) {
+        enemy.anims.play('biglegs_enemy_idle')
+      }
     }
     // assign velocity to enemy object because it may have changed
     enemy.velocityX = enemy.body.velocity.x
