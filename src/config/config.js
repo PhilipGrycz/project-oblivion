@@ -1,6 +1,5 @@
 import Phaser from 'phaser'
 import MenuScene from './../scenes/menu'
-import Level1Scene from './../scenes/level1'
 
 export default {
   type: Phaser.AUTO,
@@ -32,7 +31,6 @@ export default {
     }
   },
   scene: [
-    MenuScene,
-    Level1Scene
+    MenuScene
   ]
 }

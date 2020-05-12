@@ -1,5 +1,6 @@
 import config from './../config/config'
 import Phaser from 'phaser'
+import Level1Scene from './../scenes/level1'
 import menuBackgroundImage from './../assets/images/shared/menu_background.png'
 import menuButtonActiveImage from './../assets/images/shared/menu_button_active.png'
 import menuSoundtrackAudio from './../assets/audio/menu/menuOST.mp3'
@@ -42,7 +43,9 @@ export default class MenuScene extends Phaser.Scene {
       this.button.clearTint()
     })
 
+    // START BUTTON
     this.button.on('pointerdown', () => {
+      this.scene.add('Level1Scene', Level1Scene)
       this.scene.start('Level1Scene')
       this.soundtrack.stop()
       this.sound.play('menu_button_click')

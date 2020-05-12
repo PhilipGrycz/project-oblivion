@@ -6,22 +6,27 @@ import backgroundImage from './../assets/images/level1/background.png'
 import groundImage from './../assets/images/level1/ground.png'
 import dryadShotImage from './../assets/images/level1/dryad_shot.png'
 import dryadImage from './../assets/images/level1/dryad.png'
+import dryadDeath from './../assets/images/level1/dryad_death.png'
 import flyingEnemyImage from './../assets/images/level1/flying_enemy.png'
+import flyingEnemyDeathImage from './../assets/images/level1/flying_enemy_death.png'
 import biglegsEnemyIdleImage from './../assets/images/level1/biglegs_enemy_idle.png'
 import biglegsEnemyFlyImage from './../assets/images/level1/biglegs_enemy_fly.png'
 import biglegsEnemyJumpImage from './../assets/images/level1/biglegs_enemy_jump.png'
+import biglegsEnemyDeathImage from './../assets/images/level1/biglegs_death.png'
 import soulImage from './../assets/images/shared/soul.png'
 import hudImage from './../assets/images/shared/hud.png'
 import hearthImage from './../assets/images/shared/heart.png'
 import bloodSplatImage from './../assets/images/shared/blood_splat.png'
 import playerImage from './../assets/images/shared/player.png'
 import playerCrouchImage from './../assets/images/shared/player_crouch.png'
+import playerAttackImage from './../assets/images/shared/player_attack.png'
 import forestSoundtrack from './../assets/audio/level1/forestOST.mp3'
 import collectSoul from './../assets/audio/level1/soulCollected.mp3'
 import playerHurtSound from './../assets/audio/level1/Hurt.mp3'
 import playerDeadSound from './../assets/audio/level1/Death.mp3'
 import dryadShotSound from './../assets/audio/level1/Fireball.mp3'
 import easterEgg from './../assets/audio/level1/easterEgg.mp3'
+import { Linter } from 'eslint'
 
 export default class Level1Scene extends Phaser.Scene {
   constructor () {
@@ -45,16 +50,20 @@ export default class Level1Scene extends Phaser.Scene {
     this.load.image('ground', groundImage)
     this.load.image('bullet', dryadShotImage)
     this.load.spritesheet('dryad_enemy', dryadImage, { frameWidth: 27, frameHeight: 43 })
+    this.load.spritesheet('dryad_enemy_death', dryadDeath, { frameWidth: 27, frameHeight: 43 })
     this.load.spritesheet('flying_enemy', flyingEnemyImage, { frameWidth: 30, frameHeight: 44 })
+    this.load.spritesheet('flying_enemy_death', flyingEnemyDeathImage, { frameWidth: 26, frameHeight: 42 })
     this.load.spritesheet('biglegs_enemy_idle', biglegsEnemyIdleImage, { frameWidth: 65, frameHeight: 42 })
     this.load.spritesheet('biglegs_enemy_fly', biglegsEnemyFlyImage, { frameWidth: 80, frameHeight: 26 })
     this.load.spritesheet('biglegs_enemy_jump', biglegsEnemyJumpImage, { frameWidth: 60, frameHeight: 60 })
+    this.load.spritesheet('biglegs_enemy_death', biglegsEnemyDeathImage, { frameWidth: 90, frameHeight: 33 })
     this.load.spritesheet('soul', soulImage, { frameWidth: 11, frameHeight: 12 })
     this.load.image('hud', hudImage)
     this.load.image('heart', hearthImage)
     this.load.image('blood_splat', bloodSplatImage)
     this.load.spritesheet('player', playerImage, { frameWidth: 21, frameHeight: 39 })
     this.load.spritesheet('player_crouch', playerCrouchImage, { frameWidth: 21, frameHeight: 20 })
+    this.load.spritesheet('player_attack', playerAttackImage, { frameWidth: 121, frameHeight: 39 })
     this.load.audio('forest_soundtrack', forestSoundtrack)
     this.load.audio('collect_soul_sound', collectSoul)
     this.load.audio('player_hurt', playerHurtSound)
@@ -73,6 +82,8 @@ export default class Level1Scene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, 3560, 1080)
 
     this.cursors = this.input.keyboard.createCursorKeys()
+
+    this.attackKey = this.input.keyboard.addKey('X')
 
     this.grounds = this.physics.add.staticGroup()
 
@@ -114,7 +125,7 @@ export default class Level1Scene extends Phaser.Scene {
 
   update () {
     // if player is not visible don't move him
-    if (this.player.active === false || this.player.visible === false) {
+    if (this.player.isAttacking || this.player.active === false || this.player.visible === false) {
       return
     }
 
@@ -127,7 +138,7 @@ export default class Level1Scene extends Phaser.Scene {
       this.player.anims.play('crouch_right')
     } else if (!this.player.isCrouching && this.cursors.left.isDown && !this.player.body.touching.left) {
       this.player.setVelocityX(-100)
-
+      this.player.facingDirection = 'left'
       if (this.cursors.up.isDown) {
         this.player.anims.play('jump_left')
       } else if (this.player.body.touching.down) {
@@ -135,12 +146,14 @@ export default class Level1Scene extends Phaser.Scene {
       }
     } else if (!this.player.isCrouching && this.cursors.right.isDown && !this.player.body.touching.right) {
       this.player.setVelocityX(100)
-
+      this.player.facingDirection = 'right'
       if (this.cursors.up.isDown) {
         this.player.anims.play('jump_right')
       } else if (this.player.body.touching.down) {
         this.player.anims.play('right', true)
       }
+    } else if (Phaser.Input.Keyboard.JustDown(this.attackKey)) {
+      this.playerAttack()
     } else if (!this.cursors.down.isDown) {
       this.player.setVelocityX(0)
       if (this.player.isCrouching) {
@@ -154,7 +167,7 @@ export default class Level1Scene extends Phaser.Scene {
 
   createPlayer () {
     this.player = this.physics.add.sprite(19, 29, 'player')
-
+    this.player.facingDirection = 'right'
     this.player.setBounce(0.1)
     this.player.setCollideWorldBounds(false)
 
@@ -201,6 +214,24 @@ export default class Level1Scene extends Phaser.Scene {
       repeat: -1
     })
 
+    this.anims.create({
+      key: 'player_attack_right',
+      frames: this.anims.generateFrameNumbers('player_attack', {
+        start: 0,
+        end: 3
+      }),
+      frameRate: 10
+    })
+
+    this.anims.create({
+      key: 'player_attack_left',
+      frames: this.anims.generateFrameNumbers('player_attack', {
+        start: 4,
+        end: 7
+      }),
+      frameRate: 4
+    })
+
     // PLAYER ATTACK:
     // enemy has health property enemy.health
     // on button press play atack animation
@@ -210,6 +241,7 @@ export default class Level1Scene extends Phaser.Scene {
   }
 
   createEnemies () {
+    const self = this
     // animations
     this.anims.create({
       key: 'flying_enemy_left',
@@ -232,6 +264,15 @@ export default class Level1Scene extends Phaser.Scene {
     })
 
     this.anims.create({
+      key: 'flying_enemy_death',
+      frames: this.anims.generateFrameNumbers('flying_enemy_death', {
+        start: 0,
+        end: 5
+      }),
+      frameRate: 3
+    })
+
+    this.anims.create({
       key: 'dryad_idle_left',
       frames: this.anims.generateFrameNumbers('dryad_enemy', {
         start: 0,
@@ -251,8 +292,17 @@ export default class Level1Scene extends Phaser.Scene {
     })
 
     this.anims.create({
+      key: 'dryad_enemy_death',
+      frames: this.anims.generateFrameNumbers('dryad_enemy_death', {
+        start: 0,
+        end: 5
+      }),
+      frameRate: 6
+    })
+
+    this.anims.create({
       key: 'biglegs_enemy_idle',
-      frames: this.anims.generateFrameNames('biglegs_enemy_idle', {
+      frames: this.anims.generateFrameNumbers('biglegs_enemy_idle', {
         start: 0,
         end: 1
       }),
@@ -261,7 +311,7 @@ export default class Level1Scene extends Phaser.Scene {
 
     this.anims.create({
       key: 'biglegs_enemy_fly',
-      frames: this.anims.generateFrameNames('biglegs_enemy_fly', {
+      frames: this.anims.generateFrameNumbers('biglegs_enemy_fly', {
         start: 0,
         end: 0
       }),
@@ -270,12 +320,22 @@ export default class Level1Scene extends Phaser.Scene {
 
     this.anims.create({
       key: 'biglegs_enemy_jump',
-      frames: this.anims.generateFrameNames('biglegs_enemy_jump', {
+      frames: this.anims.generateFrameNumbers('biglegs_enemy_jump', {
         start: 0,
         end: 0
       }),
       frameRate: 6
     })
+
+    this.anims.create({
+      key: 'biglegs_enemy_death',
+      frames: this.anims.generateFrameNumbers('biglegs_enemy_death', {
+        start: 0,
+        end: 4
+      }),
+      frameRate: 6
+    })
+    // const healthBar = new Phaser.GameObjects.Line(this, 300, 300, 0, 0, 100, 0, 0xff0000)
 
     enemiesData.forEach(element => {
       const x = element[0]
@@ -286,24 +346,38 @@ export default class Level1Scene extends Phaser.Scene {
       const movementType = element[5]
       // create enemy
       const enemy = this.enemies.create(x, y, imageType)
+      // const healthBar = new Phaser.Geom.Line(x - 15, y - 40, x + 15, y - 38)
+      // const enemyContainer = this.add.container(width, height, [enemy, healthBar])
       enemy.setOrigin(0, 0)
       enemy.setDisplaySize(width, height)
       enemy.movementType = movementType
+      enemy.deathAnimationName = imageType + '_death'
       enemy.health = 10
+      enemy.scoreValue = 10
 
       if (movementType === 'stationary_shooter') {
+        enemy.scoreValue = 20
         enemy.health = this.difficulty * 2 + 8
         const attackTrigger = this.physics.add.staticImage(x - 184, y + 8, 'ground')
         attackTrigger.setOrigin(0, 0)
         attackTrigger.setSize(20, 100)
         enemy.startAtack = () => {
+          if (!enemy.active || enemy.isDead) {
+            return
+          }
           enemy.anims.play('dryad_idle_left')
           // do things in intervals
           setInterval(() => {
+            if (!enemy.active || enemy.isDead) {
+              return
+            }
             // play attack animation
             enemy.anims.play('dryad_attack_left')
             // wait for correct animation frame
             setTimeout(() => {
+              if (!enemy.active || enemy.isDead) {
+                return
+              }
               // create and shoot bullet
               const bullet = this.bullets.create(enemy.x - 8, enemy.y + 3, 'bullet')
               bullet.setVelocityX(-15 - this.difficulty * 50).setOrigin(0, 0).setGravityY(-298)
@@ -314,6 +388,9 @@ export default class Level1Scene extends Phaser.Scene {
               enemy.anims.play('dryad_idle_left')
               // destroy bullet if it is too far/long
               setTimeout(() => {
+                if (!enemy.active || enemy.isDead) {
+                  return
+                }
                 if (bullet) {
                   bullet.destroy()
                 }
@@ -330,21 +407,30 @@ export default class Level1Scene extends Phaser.Scene {
 
       // movement
       if (movementType === 'flyer') {
-        const followVelocity = this.difficulty * 20 + 80
-        enemy.health = this.difficulty * 2 + 3
-        enemy.setVelocityX(this.difficulty * 20 + 40)
-        enemy.anims.play('flying_enemy_right')
+        if (imageType === 'flying_enemy') {
+          const followVelocity = this.difficulty * 20 + 40
+          enemy.health = this.difficulty * 2 + 3
+          enemy.setVelocityX(followVelocity)
+          // TODO: MAKE HEALTH BAR:
+          // TODO: create enemy (done)
+          // TODO: create group/container
+          // TODO: create 2 bars (semitransparent and red)
+          // TODO: add enemy and bars to group/container
+          // TODO: setVelocityX on the new group/container not the enemy: enemyContainer.setVelocityX(followVelocity)
+          enemy.anims.play('flying_enemy_right')
+        }
       }
 
       if (movementType === 'trigger') {
         if (imageType === 'biglegs_enemy') {
+          enemy.scoreValue = 50
           enemy.setScale(1.2, 1.2)
           enemy.setBounceY(0.4)
           enemy.anims.play('biglegs_enemy_idle')
           enemy.followPlayer = () => {
-            const followVelocity = this.difficulty * 20 + 80
+            const followVelocity = this.difficulty * 20 + 40
             enemy.isJumping = false
-            enemy.anims.play('biglegs_enemy_fly')
+            enemy.anims.play('biglegs_enemy_jump')
 
             const playerIsOnRight = this.player.body.x > enemy.x
             enemy.setVelocityX(playerIsOnRight ? followVelocity : -followVelocity)
@@ -352,6 +438,10 @@ export default class Level1Scene extends Phaser.Scene {
             enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
             // keep refreshing player's position and follow player in correct direction
             const followInterval = setInterval(() => {
+              if (!enemy.active || enemy.isDead || !this.player.active) {
+                clearInterval(followInterval)
+                return
+              }
               if (!enemy.isJumping) {
                 // only follow if is not jumping
                 const playerIsOnRight = this.player.body.x > enemy.x
@@ -364,10 +454,13 @@ export default class Level1Scene extends Phaser.Scene {
             }, 1000)
           }
           enemy.doAttack = () => {
+            if (!enemy.active || enemy.isDead) {
+              return
+            }
             enemy.anims.play('biglegs_enemy_jump')
             enemy.isJumping = true
             const playerIsOnRight = this.player.body.x > enemy.x
-            const atackVelocity = this.difficulty * 100 + 100
+            const atackVelocity = this.difficulty * 100
 
             enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
             enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
@@ -377,6 +470,9 @@ export default class Level1Scene extends Phaser.Scene {
             enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
             // move side in the air and down (using natural gravity)
             setTimeout(() => {
+              if (!enemy.active || enemy.isDead) {
+                return
+              }
               enemy.setGravityY(-300)
               enemy.setVelocityX(playerIsOnRight ? atackVelocity : -atackVelocity)
               enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
@@ -384,6 +480,9 @@ export default class Level1Scene extends Phaser.Scene {
             }, 500)
             // set normal gravity
             setTimeout(() => {
+              if (!enemy.active || enemy.isDead) {
+                return
+              }
               enemy.setGravityY(0)
               enemy.setVelocityX(playerIsOnRight ? atackVelocity : -atackVelocity)
               enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
@@ -392,6 +491,9 @@ export default class Level1Scene extends Phaser.Scene {
             }, 700)
             // repeat attack
             setTimeout(() => {
+              if (!enemy.active || enemy.isDead) {
+                return
+              }
               enemy.doAttack()
             }, 7000)
           }
@@ -410,6 +512,20 @@ export default class Level1Scene extends Phaser.Scene {
 
       // assign velocity to enemy object
       enemy.velocityX = enemy.body.velocity.x
+
+      // die function
+      enemy.die = function () {
+        this.isDead = true
+        this.anims.play(this.deathAnimationName)
+        this.once('animationcomplete', () => {
+          this.active = false
+          this.destroy()
+          self.enemies.remove(this)
+          self.score += this.scoreValue
+          self.updateHud()
+          console.log('ENEMY DIED')
+        })
+      }
     })
     this.physics.add.collider(this.enemies, this.grounds, this.groundsTouchEventHandler, null, this)
     this.physics.add.collider(this.player, this.enemies, this.enemyTouchEventHandler, null, this)
@@ -418,6 +534,10 @@ export default class Level1Scene extends Phaser.Scene {
   }
 
   groundsTouchEventHandler (enemy, ground) {
+    if (enemy.isDead) {
+      return
+    }
+
     if (enemy.movementType === 'flyer') {
       if (enemy.body.touching.left && ground.body.touching.right) {
         enemy.setVelocityX(50)
@@ -442,6 +562,9 @@ export default class Level1Scene extends Phaser.Scene {
   }
 
   enemyTouchEventHandler (player, enemy) {
+    if (enemy.isDead) {
+      return
+    }
     // enemy.disableBody(true, true);
     if (player.body.touching.left) {
       player.setPosition(player.x + 20, player.y - 5)
@@ -568,6 +691,7 @@ export default class Level1Scene extends Phaser.Scene {
 
   showMenuScene () {
     this.scene.start('Menu')
+    window.game.scene.remove('Level1Scene')
   }
 
   createHud () {
@@ -603,6 +727,9 @@ export default class Level1Scene extends Phaser.Scene {
 
     // souls
     this.soulsCollectedText.setText('SOULS:' + this.soulsCollected)
+
+    // score
+    this.scoreText.setText('SCORE:' + this.score)
   }
 
   easterEgg () {
@@ -624,5 +751,38 @@ export default class Level1Scene extends Phaser.Scene {
     this.sound.add('easter_egg')
     this.sound.add('collect_soul_sound')
     this.sound.add('player_dead')
+  }
+
+  playerAttack () {
+    // TODO: Player hitbox shows for a milisecond away on attack.
+    this.player.isAttacking = true
+    const animationName = this.player.facingDirection == 'left' ? 'player_attack_left' : 'player_attack_right'
+    this.player.anims.play(animationName, true)
+    this.player.setOffset(this.player.facingDirection == 'left' ? 100 : 0, 0)
+    this.player.setPosition(this.player.facingDirection == 'right' ? this.player.x + 50 : this.player.x - 50, this.player.y)
+    const attackArea = this.physics.add.staticImage(this.player.facingDirection == 'left' ? this.player.x - 13 : this.player.x + 13, this.player.y, 'ground')
+    attackArea.setOrigin(0, 0)
+    attackArea.setSize(100, 40)
+    this.physics.add.overlap(this.enemies, attackArea, (area, enemy) => {
+      if (enemy.active === false || enemy.isDead) {
+        return
+      }
+      attackArea.destroy()
+      enemy.health -= 1
+      if (enemy.health === 0) {
+        enemy.die()
+      }
+    }, null, this)
+    setTimeout(() => {
+      this.player.anims.playReverse(animationName)
+      setTimeout(() => {
+        if (attackArea) {
+          attackArea.destroy()
+        }
+        this.player.setOffset(0, 0)
+        this.player.setPosition(this.player.facingDirection == 'right' ? this.player.x - 50 : this.player.x + 50, this.player.y)
+        this.player.isAttacking = false
+      }, 400)
+    }, 400)
   }
 }
