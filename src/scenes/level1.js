@@ -26,7 +26,6 @@ import playerHurtSound from './../assets/audio/level1/Hurt.mp3'
 import playerDeadSound from './../assets/audio/level1/Death.mp3'
 import dryadShotSound from './../assets/audio/level1/Fireball.mp3'
 import easterEgg from './../assets/audio/level1/easterEgg.mp3'
-import { Linter } from 'eslint'
 
 export default class Level1Scene extends Phaser.Scene {
   constructor () {
