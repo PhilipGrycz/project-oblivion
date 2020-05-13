@@ -801,7 +801,7 @@ export default class Level1Scene extends Phaser.Scene {
         this.player.setOffset(0, 0)
         this.player.setPosition(this.player.facingDirection == 'right' ? this.player.x - 50 : this.player.x + 50, this.player.y)
         this.player.isAttacking = false
-      }, 400)
+      }, 250)
     }, 400)
   }
 }
