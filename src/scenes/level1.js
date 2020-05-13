@@ -377,7 +377,7 @@ export default class Level1Scene extends Phaser.Scene {
         const attackTrigger = this.physics.add.staticImage(x - 184, y + 8, 'ground')
         attackTrigger.setOrigin(0, 0)
         attackTrigger.setSize(20, 100)
-        enemy.startAtack = () => {
+        enemy.doAttack = () => {
           if (!enemy.active || enemy.isDead) {
             return
           }
@@ -395,7 +395,7 @@ export default class Level1Scene extends Phaser.Scene {
                 return
               }
               // create and shoot bullet
-              const bullet = this.bullets.create(enemyGameObject.x - 8, enemyGameObject.y + 3, 'bullet')
+              const bullet = this.bullets.create(enemy.x - 8, enemy.y - 15, 'bullet')
               bullet.setVelocityX(-15 - this.difficulty * 50).setOrigin(0, 0).setGravityY(-298)
 
               this.sound.play('dryad_shot_sound')
@@ -417,7 +417,7 @@ export default class Level1Scene extends Phaser.Scene {
 
         this.physics.add.collider(this.player, attackTrigger, () => {
           attackTrigger.destroy()
-          enemy.startAtack()
+          enemy.doAttack()
         })
       }
 
