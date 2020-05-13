@@ -19,7 +19,8 @@ import hearthImage from './../assets/images/shared/heart.png'
 import bloodSplatImage from './../assets/images/shared/blood_splat.png'
 import playerImage from './../assets/images/shared/player.png'
 import playerCrouchImage from './../assets/images/shared/player_crouch.png'
-import playerAttackImage from './../assets/images/shared/player_attack.png'
+import playerAttackImage from './../assets/images/shared/attack_player.png'
+import attackAreaImage from './../assets/images/shared/attack_area.png'
 import forestSoundtrack from './../assets/audio/level1/forestOST.mp3'
 import collectSoul from './../assets/audio/level1/soulCollected.mp3'
 import playerHurtSound from './../assets/audio/level1/Hurt.mp3'
@@ -62,7 +63,8 @@ export default class Level1Scene extends Phaser.Scene {
     this.load.image('blood_splat', bloodSplatImage)
     this.load.spritesheet('player', playerImage, { frameWidth: 21, frameHeight: 39 })
     this.load.spritesheet('player_crouch', playerCrouchImage, { frameWidth: 21, frameHeight: 20 })
-    this.load.spritesheet('player_attack', playerAttackImage, { frameWidth: 121, frameHeight: 39 })
+    this.load.spritesheet('player_attack', playerAttackImage, { frameWidth: 22, frameHeight: 39 })
+    this.load.spritesheet('attack_area', attackAreaImage, { frameWidth: 101, frameHeight: 39 })
     this.load.audio('forest_soundtrack', forestSoundtrack)
     this.load.audio('collect_soul_sound', collectSoul)
     this.load.audio('player_hurt', playerHurtSound)
@@ -134,24 +136,26 @@ export default class Level1Scene extends Phaser.Scene {
       this.player.isCrouching = true
       this.player.setSize(21, 20)
       this.player.setVelocityX(0)
-      this.player.anims.play('crouch_right')
+      this.player.anims.play('crouch')
     } else if (!this.player.isCrouching && this.cursors.left.isDown && !this.player.body.touching.left) {
       this.player.setVelocityX(-100)
       this.player.facingDirection = 'left'
+      this.player.flipX = true
       if (this.cursors.up.isDown) {
-        this.player.anims.play('jump_left')
+        this.player.anims.play('jump')
       } else if (this.player.body.touching.down) {
-        this.player.anims.play('left', true)
+        this.player.anims.play('walk', true)
       }
     } else if (!this.player.isCrouching && this.cursors.right.isDown && !this.player.body.touching.right) {
       this.player.setVelocityX(100)
       this.player.facingDirection = 'right'
+      this.player.flipX = false
       if (this.cursors.up.isDown) {
-        this.player.anims.play('jump_right')
+        this.player.anims.play('jump')
       } else if (this.player.body.touching.down) {
-        this.player.anims.play('right', true)
+        this.player.anims.play('walk', true)
       }
-    } else if (Phaser.Input.Keyboard.JustDown(this.attackKey)) {
+    } else if (Phaser.Input.Keyboard.JustDown(this.attackKey) && this.player.body.touching.down) {
       this.playerAttack()
     } else if (!this.cursors.down.isDown) {
       this.player.setVelocityX(0)
@@ -174,47 +178,33 @@ export default class Level1Scene extends Phaser.Scene {
     this.player.collider = this.physics.add.collider(this.player, this.grounds)
 
     this.anims.create({
-      key: 'left',
-      frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
-      frameRate: 5,
-      repeat: -1
-    })
-
-    this.anims.create({
       key: 'turn',
       frames: [{ key: 'player', frame: 5 }],
       frameRate: 1
     })
 
     this.anims.create({
-      key: 'right',
+      key: 'walk',
       frames: this.anims.generateFrameNumbers('player', { start: 6, end: 9 }),
       frameRate: 5,
       repeat: -1
     })
 
     this.anims.create({
-      key: 'jump_left',
-      frames: [{ key: 'player', frame: 10 }],
-      frameRate: 1,
-      repeat: -1
-    })
-
-    this.anims.create({
-      key: 'jump_right',
+      key: 'jump',
       frames: [{ key: 'player', frame: 11 }],
       frameRate: 1
     })
 
     this.anims.create({
-      key: 'crouch_right',
+      key: 'crouch',
       frames: [{ key: 'player', frame: 13 }],
       frameRate: 1,
       repeat: -1
     })
 
     this.anims.create({
-      key: 'player_attack_right',
+      key: 'player_attack',
       frames: this.anims.generateFrameNumbers('player_attack', {
         start: 0,
         end: 3
@@ -223,20 +213,13 @@ export default class Level1Scene extends Phaser.Scene {
     })
 
     this.anims.create({
-      key: 'player_attack_left',
-      frames: this.anims.generateFrameNumbers('player_attack', {
-        start: 4,
-        end: 7
+      key: 'attack_area',
+      frames: this.anims.generateFrameNumbers('attack_area', {
+        start: 0,
+        end: 3
       }),
-      frameRate: 4
+      frameRate: 10
     })
-
-    // PLAYER ATTACK:
-    // enemy has health property enemy.health
-    // on button press play atack animation
-    // add new invisible box, add colider to the box between enemies and the box
-    // destroy the colider (if still exists) in 1 second
-    // on colider touch event destroy the box and take live from enemy.
   }
 
   createEnemies () {
@@ -778,32 +761,45 @@ export default class Level1Scene extends Phaser.Scene {
   }
 
   playerAttack () {
-    // TODO: Player hitbox shows for a milisecond away on attack.
     this.player.isAttacking = true
-    const animationName = this.player.facingDirection == 'left' ? 'player_attack_left' : 'player_attack_right'
-    this.player.anims.play(animationName, true)
-    this.player.setOffset(this.player.facingDirection == 'left' ? 100 : 0, 0)
-    this.player.setPosition(this.player.facingDirection == 'right' ? this.player.x + 50 : this.player.x - 50, this.player.y)
-    const attackArea = this.physics.add.staticImage(this.player.facingDirection == 'left' ? this.player.x - 13 : this.player.x + 13, this.player.y, 'ground')
+    this.player.setVelocityX(0)
+    this.player.anims.play('player_attack', true)
+    const attackArea = this.add.sprite(this.player.facingDirection == 'left' ? this.player.x - 110 : this.player.x + 9, this.player.y - 19, 'attack_area')
+    this.physics.world.enable(attackArea)
+    attackArea.isActive = true
+    attackArea.flipX = this.player.facingDirection == 'left'
+    attackArea.anims.play('attack_area')
+    attackArea.setSize(99, 39)
     attackArea.setOrigin(0, 0)
-    attackArea.setSize(100, 40)
+    attackArea.body.setAllowGravity(false)
     this.physics.add.overlap(this.enemies, attackArea, (enemy, area) => {
       if (enemy.active === false || enemy.isDead) {
         return
       }
-      attackArea.destroy()
+      if (!attackArea.isActive) {
+        return
+      }
       enemy.takeDamage()
-    }, null, this)
-    setTimeout(() => {
-      this.player.anims.playReverse(animationName)
+      attackArea.isActive = false
+
       setTimeout(() => {
         if (attackArea) {
           attackArea.destroy()
         }
-        this.player.setOffset(0, 0)
-        this.player.setPosition(this.player.facingDirection == 'right' ? this.player.x - 50 : this.player.x + 50, this.player.y)
         this.player.isAttacking = false
       }, 250)
+    }, null, this)
+    setTimeout(() => {
+      if (attackArea && attackArea.active) {
+        this.player.anims.playReverse('player_attack')
+        attackArea.anims.playReverse('attack_area')
+        setTimeout(() => {
+          if (attackArea) {
+            attackArea.destroy()
+          }
+          this.player.isAttacking = false
+        }, 250)
+      }
     }, 400)
   }
 }
