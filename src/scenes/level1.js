@@ -355,9 +355,9 @@ export default class Level1Scene extends Phaser.Scene {
       this.enemies.add(enemy)
 
       // health bars
-      const emptyHealthBar = this.add.line(0, -(enemy.height / 2) - 10, 0, 0, 20, 0, 0xaaaaaa, 100)
+      const emptyHealthBar = this.add.line(0, -(enemy.height / 2) - 10, 0, 0, 20, 0, 0xaaaaaa, 50)
       emptyHealthBar.name = 'emptyHealthBar'
-      const healthBar = this.add.line(0, -(enemy.height / 2) - 10, 0, 0, 10, 0, 0x00aa00)
+      const healthBar = this.add.line(0, -(enemy.height / 2) - 10, 0, 0, 20, 0, 0x00aa00)
       healthBar.name = 'healthBar'
       enemy.add([emptyHealthBar, healthBar])
 
@@ -373,7 +373,7 @@ export default class Level1Scene extends Phaser.Scene {
 
       if (movementType === 'stationary_shooter') {
         enemy.scoreValue = 20
-        enemy.health  = this.difficulty * 2 + 8
+        enemy.health = this.difficulty * 2 + 8
         const attackTrigger = this.physics.add.staticImage(x - 184, y + 8, 'ground')
         attackTrigger.setOrigin(0, 0)
         attackTrigger.setSize(20, 100)
@@ -425,7 +425,7 @@ export default class Level1Scene extends Phaser.Scene {
       if (movementType === 'flyer') {
         if (imageType === 'flying_enemy') {
           const followVelocity = this.difficulty * 20 + 40
-          enemy.health  = this.difficulty * 2 + 3
+          enemy.health = this.difficulty * 2 + 3
           enemy.body.setVelocityX(followVelocity)
           enemyGameObject.anims.play('flying_enemy_right')
         }
@@ -519,12 +519,17 @@ export default class Level1Scene extends Phaser.Scene {
         }
       }
 
+      enemy.maxHealth = enemy.health
       // assign velocity to enemy object
       enemy.velocityX = enemy.body.velocity.x
 
-      // TODO: ADD takeDamage function to enemy which will decrease health and refresh size of the health bar
-      // TODO: call it when player attack happened
-      // TODO: and call the die function from there as well when enemy has no health
+      enemy.takeDamage = function () {
+        this.health -= 1
+        this.getByName('healthBar').setScale(this.health / this.maxHealth, 1)
+        if (this.health === 0) {
+          this.die()
+        }
+      }
 
       // die function
       enemy.die = function () {
@@ -533,7 +538,7 @@ export default class Level1Scene extends Phaser.Scene {
         this.getByName('enemyGameObject').once('animationcomplete', () => {
           this.active = false
           this.destroy()
-          // self.enemies.remove(this) // TODO: ?
+          self.enemies.remove(this)
           self.score += this.scoreValue
           self.updateHud()
           console.log('ENEMY DIED')
@@ -782,15 +787,12 @@ export default class Level1Scene extends Phaser.Scene {
     const attackArea = this.physics.add.staticImage(this.player.facingDirection == 'left' ? this.player.x - 13 : this.player.x + 13, this.player.y, 'ground')
     attackArea.setOrigin(0, 0)
     attackArea.setSize(100, 40)
-    this.physics.add.overlap(this.enemies, attackArea, (area, enemy) => {
+    this.physics.add.overlap(this.enemies, attackArea, (enemy, area) => {
       if (enemy.active === false || enemy.isDead) {
         return
       }
       attackArea.destroy()
-      enemy.health -= 1
-      if (enemy.health === 0) {
-        enemy.die()
-      }
+      enemy.takeDamage()
     }, null, this)
     setTimeout(() => {
       this.player.anims.playReverse(animationName)
