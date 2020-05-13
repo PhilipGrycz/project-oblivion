@@ -334,7 +334,6 @@ export default class Level1Scene extends Phaser.Scene {
       }),
       frameRate: 6
     })
-    // const healthBar = new Phaser.GameObjects.Line(this, 300, 300, 0, 0, 100, 0, 0xff0000)
 
     enemiesData.forEach(element => {
       const x = element[0]
@@ -344,7 +343,7 @@ export default class Level1Scene extends Phaser.Scene {
       const imageType = element[4]
       const movementType = element[5]
       // create enemy
-      const enemy = this.enemies.create(x, y, imageType)
+      const enemy = this.enemies.create(0, 0, imageType)
       // const healthBar = new Phaser.Geom.Line(x - 15, y - 40, x + 15, y - 38)
       // const enemyContainer = this.add.container(width, height, [enemy, healthBar])
       enemy.setOrigin(0, 0)
@@ -353,6 +352,10 @@ export default class Level1Scene extends Phaser.Scene {
       enemy.deathAnimationName = imageType + '_death'
       enemy.health = 10
       enemy.scoreValue = 10
+      const emptyHealthBar = this.add.line(0, 0, 0, 0, 10, 0, 0xaaaaaa, 100)
+      const healthBar = this.add.line(0, 0, 0, 0, 10, 0, 0x00aa00)
+      const enemyContainer = this.add.container(width, height, [enemy, emptyHealthBar, healthBar])
+      enemyContainer.setPosition(x, y)
 
       if (movementType === 'stationary_shooter') {
         enemy.scoreValue = 20
@@ -410,12 +413,6 @@ export default class Level1Scene extends Phaser.Scene {
           const followVelocity = this.difficulty * 20 + 40
           enemy.health = this.difficulty * 2 + 3
           enemy.setVelocityX(followVelocity)
-          // TODO: MAKE HEALTH BAR:
-          // TODO: create enemy (done)
-          // TODO: create group/container
-          // TODO: create 2 bars (semitransparent and red)
-          // TODO: add enemy and bars to group/container
-          // TODO: setVelocityX on the new group/container not the enemy: enemyContainer.setVelocityX(followVelocity)
           enemy.anims.play('flying_enemy_right')
         }
       }
