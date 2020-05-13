@@ -86,7 +86,7 @@ export default class Level1Scene extends Phaser.Scene {
 
     this.grounds = this.physics.add.staticGroup()
 
-    this.enemies = this.physics.add.group()
+    this.enemies = this.add.group()
 
     this.bullets = this.physics.add.group()
 
@@ -305,7 +305,8 @@ export default class Level1Scene extends Phaser.Scene {
         start: 0,
         end: 1
       }),
-      frameRate: 6
+      frameRate: 5,
+      repeat: -1
     })
 
     this.anims.create({
@@ -342,24 +343,37 @@ export default class Level1Scene extends Phaser.Scene {
       const height = element[3]
       const imageType = element[4]
       const movementType = element[5]
-      // create enemy
-      const enemy = this.enemies.create(0, 0, imageType)
-      // const healthBar = new Phaser.Geom.Line(x - 15, y - 40, x + 15, y - 38)
-      // const enemyContainer = this.add.container(width, height, [enemy, healthBar])
-      enemy.setOrigin(0, 0)
-      enemy.setDisplaySize(width, height)
+      // create enemy container
+      const enemy = this.add.container(x, y)
+      if (imageType === 'biglegs_enemy') { // bigleg enemy needs smaller container box
+        enemy.setSize(width * 0.6, height)
+      } else {
+        enemy.setSize(width, height)
+      }
+      this.physics.world.enable(enemy)
+      // add to enemies group
+      this.enemies.add(enemy)
+
+      // health bars
+      const emptyHealthBar = this.add.line(0, -(enemy.height / 2) - 10, 0, 0, 20, 0, 0xaaaaaa, 100)
+      emptyHealthBar.name = 'emptyHealthBar'
+      const healthBar = this.add.line(0, -(enemy.height / 2) - 10, 0, 0, 10, 0, 0x00aa00)
+      healthBar.name = 'healthBar'
+      enemy.add([emptyHealthBar, healthBar])
+
+      // create enemy game object (for animations etc.)
+      const enemyGameObject = this.add.sprite(0, 0, imageType)
+      enemyGameObject.name = 'enemyGameObject' // give it a key so we can retrieve it later
+      enemyGameObject.setDisplaySize(width, height)
       enemy.movementType = movementType
       enemy.deathAnimationName = imageType + '_death'
       enemy.health = 10
       enemy.scoreValue = 10
-      const emptyHealthBar = this.add.line(0, 0, 0, 0, 10, 0, 0xaaaaaa, 100)
-      const healthBar = this.add.line(0, 0, 0, 0, 10, 0, 0x00aa00)
-      const enemyContainer = this.add.container(width, height, [enemy, emptyHealthBar, healthBar])
-      enemyContainer.setPosition(x, y)
+      enemy.add(enemyGameObject)
 
       if (movementType === 'stationary_shooter') {
         enemy.scoreValue = 20
-        enemy.health = this.difficulty * 2 + 8
+        enemy.health  = this.difficulty * 2 + 8
         const attackTrigger = this.physics.add.staticImage(x - 184, y + 8, 'ground')
         attackTrigger.setOrigin(0, 0)
         attackTrigger.setSize(20, 100)
@@ -367,27 +381,27 @@ export default class Level1Scene extends Phaser.Scene {
           if (!enemy.active || enemy.isDead) {
             return
           }
-          enemy.anims.play('dryad_idle_left')
+          enemyGameObject.anims.play('dryad_idle_left')
           // do things in intervals
           setInterval(() => {
             if (!enemy.active || enemy.isDead) {
               return
             }
             // play attack animation
-            enemy.anims.play('dryad_attack_left')
+            enemyGameObject.anims.play('dryad_attack_left')
             // wait for correct animation frame
             setTimeout(() => {
               if (!enemy.active || enemy.isDead) {
                 return
               }
               // create and shoot bullet
-              const bullet = this.bullets.create(enemy.x - 8, enemy.y + 3, 'bullet')
+              const bullet = this.bullets.create(enemyGameObject.x - 8, enemyGameObject.y + 3, 'bullet')
               bullet.setVelocityX(-15 - this.difficulty * 50).setOrigin(0, 0).setGravityY(-298)
 
               this.sound.play('dryad_shot_sound')
 
               // back to idle animation
-              enemy.anims.play('dryad_idle_left')
+              enemyGameObject.anims.play('dryad_idle_left')
               // destroy bullet if it is too far/long
               setTimeout(() => {
                 if (!enemy.active || enemy.isDead) {
@@ -411,40 +425,36 @@ export default class Level1Scene extends Phaser.Scene {
       if (movementType === 'flyer') {
         if (imageType === 'flying_enemy') {
           const followVelocity = this.difficulty * 20 + 40
-          enemy.health = this.difficulty * 2 + 3
-          enemy.setVelocityX(followVelocity)
-          enemy.anims.play('flying_enemy_right')
+          enemy.health  = this.difficulty * 2 + 3
+          enemy.body.setVelocityX(followVelocity)
+          enemyGameObject.anims.play('flying_enemy_right')
         }
       }
 
       if (movementType === 'trigger') {
         if (imageType === 'biglegs_enemy') {
           enemy.scoreValue = 50
-          enemy.setScale(1.2, 1.2)
-          enemy.setBounceY(0.4)
-          enemy.anims.play('biglegs_enemy_idle')
+          enemy.setDisplaySize(width * 0.6, height)
+          enemyGameObject.setScale(1, 1)
+          enemy.body.setBounceY(0.4)
+          enemyGameObject.anims.play('biglegs_enemy_idle')
           enemy.followPlayer = () => {
             const followVelocity = this.difficulty * 20 + 40
-            enemy.isJumping = false
-            enemy.anims.play('biglegs_enemy_jump')
-
-            const playerIsOnRight = this.player.body.x > enemy.x
-            enemy.setVelocityX(playerIsOnRight ? followVelocity : -followVelocity)
-            enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
-            enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
             // keep refreshing player's position and follow player in correct direction
             const followInterval = setInterval(() => {
               if (!enemy.active || enemy.isDead || !this.player.active) {
                 clearInterval(followInterval)
                 return
               }
-              if (!enemy.isJumping) {
-                // only follow if is not jumping
-                const playerIsOnRight = this.player.body.x > enemy.x
-                enemy.setVelocityX(playerIsOnRight ? followVelocity : -followVelocity)
-                enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
-                enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
-              } else {
+              const playerIsOnRight = this.player.body.x > enemy.x
+              enemy.body.setVelocityX(playerIsOnRight ? followVelocity : -followVelocity)
+              enemyGameObject.setScale(playerIsOnRight ? -1 : 1, 1)
+              // if in jump we also need to center the enemy according to the animation
+              if (enemyGameObject.anims.currentAnim.key === 'biglegs_enemy_jump') {
+                enemyGameObject.setPosition(playerIsOnRight ? -(width / 4) : (width / 4), 0)
+              }
+              // only follow if is not jumping
+              if (enemy.isAttacking) {
                 clearInterval(followInterval) // stop interval
               }
             }, 1000)
@@ -453,36 +463,39 @@ export default class Level1Scene extends Phaser.Scene {
             if (!enemy.active || enemy.isDead) {
               return
             }
-            enemy.anims.play('biglegs_enemy_jump')
-            enemy.isJumping = true
+            enemy.isAttacking = true
+            enemyGameObject.anims.play('biglegs_enemy_jump')
             const playerIsOnRight = this.player.body.x > enemy.x
             const atackVelocity = this.difficulty * 100
-
-            enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
-            enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
             // jump up
-            enemy.setGravityY(-600)
-            enemy.setVelocityX(playerIsOnRight ? atackVelocity : -atackVelocity)
-            enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
+            enemy.body.setGravityY(-600)
+            enemy.body.setVelocityX(playerIsOnRight ? atackVelocity : -atackVelocity)
+            enemyGameObject.setScale(playerIsOnRight ? -1 : 1, 1)
+            enemyGameObject.setPosition(playerIsOnRight ? -(width / 4) : (width / 4), 0)
+            // when jumping also move teh health bar
+            healthBar.setPosition(0, -(enemy.height / 2) - 20)
+            emptyHealthBar.setPosition(0, -(enemy.height / 2) - 20)
+
             // move side in the air and down (using natural gravity)
             setTimeout(() => {
               if (!enemy.active || enemy.isDead) {
                 return
               }
-              enemy.setGravityY(-300)
-              enemy.setVelocityX(playerIsOnRight ? atackVelocity : -atackVelocity)
-              enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
-              enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
+              enemy.body.setGravityY(-300)
+              enemy.body.setVelocityX(playerIsOnRight ? atackVelocity : -atackVelocity)
+              enemyGameObject.setScale(playerIsOnRight ? -1 : 1, 1)
+              enemyGameObject.setPosition(playerIsOnRight ? -(width / 4) : (width / 4), 0)
             }, 500)
             // set normal gravity
             setTimeout(() => {
               if (!enemy.active || enemy.isDead) {
                 return
               }
-              enemy.setGravityY(0)
-              enemy.setVelocityX(playerIsOnRight ? atackVelocity : -atackVelocity)
-              enemy.setScale(playerIsOnRight ? -1.2 : 1.2, 1.2)
-              enemy.setOffset(playerIsOnRight ? width / 2 : 0, 0)
+              enemy.body.setGravityY(0)
+              enemy.body.setVelocityX(playerIsOnRight ? atackVelocity : -atackVelocity)
+              enemyGameObject.setScale(playerIsOnRight ? -1 : 1, 1)
+              enemyGameObject.setPosition(playerIsOnRight ? -(width / 4) : (width / 4), 0)
+              enemy.isAttacking = false
               enemy.followPlayer()
             }, 700)
             // repeat attack
@@ -509,14 +522,18 @@ export default class Level1Scene extends Phaser.Scene {
       // assign velocity to enemy object
       enemy.velocityX = enemy.body.velocity.x
 
+      // TODO: ADD takeDamage function to enemy which will decrease health and refresh size of the health bar
+      // TODO: call it when player attack happened
+      // TODO: and call the die function from there as well when enemy has no health
+
       // die function
       enemy.die = function () {
         this.isDead = true
-        this.anims.play(this.deathAnimationName)
-        this.once('animationcomplete', () => {
+        this.getByName('enemyGameObject').anims.play(this.deathAnimationName)
+        this.getByName('enemyGameObject').once('animationcomplete', () => {
           this.active = false
           this.destroy()
-          self.enemies.remove(this)
+          // self.enemies.remove(this) // TODO: ?
           self.score += this.scoreValue
           self.updateHud()
           console.log('ENEMY DIED')
@@ -536,11 +553,11 @@ export default class Level1Scene extends Phaser.Scene {
 
     if (enemy.movementType === 'flyer') {
       if (enemy.body.touching.left && ground.body.touching.right) {
-        enemy.setVelocityX(50)
-        enemy.anims.play('flying_enemy_right')
+        enemy.body.setVelocityX(50)
+        enemy.getByName('enemyGameObject').anims.play('flying_enemy_right')
       } else if (enemy.body.touching.right && ground.body.touching.left) {
-        enemy.setVelocityX(-50)
-        enemy.anims.play('flying_enemy_left')
+        enemy.body.setVelocityX(-50)
+        enemy.getByName('enemyGameObject').anims.play('flying_enemy_left')
       }
     }
 
@@ -549,8 +566,14 @@ export default class Level1Scene extends Phaser.Scene {
     }
 
     if (enemy.movementType === 'trigger') {
-      if (enemy.body.touching.up && ground.body.touching.down) {
-        enemy.anims.play('biglegs_enemy_idle')
+      if (enemy.body.touching.down && ground.body.touching.up) {
+        if (enemy.getByName('enemyGameObject').anims.currentAnim.key !== 'biglegs_enemy_idle') {
+          enemy.getByName('enemyGameObject').anims.play('biglegs_enemy_idle')
+          enemy.getByName('enemyGameObject').setPosition(0, 0)
+          // reset health bar position
+          enemy.getByName('healthBar').setPosition(0, -(enemy.height / 2) - 10)
+          enemy.getByName('emptyHealthBar').setPosition(0, -(enemy.height / 2) - 10)
+        }
       }
     }
     // assign velocity to enemy object because it may have changed
@@ -573,7 +596,7 @@ export default class Level1Scene extends Phaser.Scene {
     // enemy.flipX = true
     // enemy.anims.playReverse()
     setTimeout(() => {
-      enemy.setVelocityX(velocityX)
+      enemy.body.setVelocityX(velocityX)
     }, 300)
 
     this.sound.play('player_hurt')
