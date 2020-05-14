@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import config from './../config/config'
 import groundData from './../data/grounds_data'
 import soulData from './../data/soul_data'
 import enemiesData from './../data/enemies_data'
@@ -24,9 +25,19 @@ import attackAreaImage from './../assets/images/shared/attack_area.png'
 import forestSoundtrack from './../assets/audio/level1/forestOST.mp3'
 import collectSoul from './../assets/audio/level1/soulCollected.mp3'
 import playerHurtSound from './../assets/audio/level1/Hurt.mp3'
+import attackSound from './../assets/audio/level1/Attack.mp3'
 import playerDeadSound from './../assets/audio/level1/Death.mp3'
 import dryadShotSound from './../assets/audio/level1/Fireball.mp3'
 import easterEgg from './../assets/audio/level1/easterEgg.mp3'
+import dryadDeadSound from './../assets/audio/level1/dryad_death.mp3'
+import dryadBaseSound from './../assets/audio/level1/dryad_base.mp3'
+import dryadHurtSound from './../assets/audio/level1/dryad_hurt.mp3'
+import flyingDeadSound from './../assets/audio/level1/flying_death_sound.mp3'
+import flyingHurtSound from './../assets/audio/level1/flying_hurt_sound.mp3'
+import biglegsHurtSound from './../assets/audio/level1/biglegs_hurt_sound.mp3'
+import biglegsDeadSound from './../assets/audio/level1/biglegs_death_sound.mp3'
+import biglegsBaseSound from './../assets/audio/level1/biglegs_base_sound.mp3'
+import biglegsAttackSound from './../assets/audio/level1/biglegs_attack_sound.mp3'
 
 export default class Level1Scene extends Phaser.Scene {
   constructor () {
@@ -68,9 +79,19 @@ export default class Level1Scene extends Phaser.Scene {
     this.load.audio('forest_soundtrack', forestSoundtrack)
     this.load.audio('collect_soul_sound', collectSoul)
     this.load.audio('player_hurt', playerHurtSound)
+    this.load.audio('attack_sound', attackSound)
     this.load.audio('player_dead', playerDeadSound)
     this.load.audio('dryad_shot_sound', dryadShotSound)
     this.load.audio('easter_egg', easterEgg)
+    this.load.audio('dryad_enemy_death_sound', dryadDeadSound)
+    this.load.audio('dryad_enemy_base_sound', dryadBaseSound)
+    this.load.audio('dryad_enemy_hurt_sound', dryadHurtSound)
+    this.load.audio('flying_enemy_hurt_sound', flyingHurtSound)
+    this.load.audio('flying_enemy_death_sound', flyingDeadSound)
+    this.load.audio('biglegs_enemy_death_sound', biglegsDeadSound)
+    this.load.audio('biglegs_enemy_hurt_sound', biglegsHurtSound)
+    this.load.audio('biglegs_enemy_base_sound', biglegsBaseSound)
+    this.load.audio('biglegs_enemy_attack_sound', biglegsAttackSound)
   }
 
   create () {
@@ -350,6 +371,8 @@ export default class Level1Scene extends Phaser.Scene {
       enemyGameObject.setDisplaySize(width, height)
       enemy.movementType = movementType
       enemy.deathAnimationName = imageType + '_death'
+      enemy.deathSoundName = imageType + '_death_sound'
+      enemy.hurtSoundName = imageType + '_hurt_sound'
       enemy.health = 10
       enemy.scoreValue = 10
       enemy.add(enemyGameObject)
@@ -378,11 +401,14 @@ export default class Level1Scene extends Phaser.Scene {
                 return
               }
               // create and shoot bullet
-              const bullet = this.bullets.create(enemy.x - 8, enemy.y - 15, 'bullet')
-              bullet.setVelocityX(-15 - this.difficulty * 50).setOrigin(0, 0).setGravityY(-298)
+              const playerIsOnRight = this.player.body.x > enemy.x
+              // create and shoot bullet
+              const bullet = this.bullets.create(playerIsOnRight ? enemy.x + 8 : enemy.x - 8, enemy.y - 15, 'bullet')
+              const bulletVelocity = 15 - this.difficulty * 50
+              bullet.setVelocityX(playerIsOnRight ? -bulletVelocity : bulletVelocity).setOrigin(0, 0).setGravityY(-298)
 
               this.sound.play('dryad_shot_sound')
-
+              enemyGameObject.flipX = playerIsOnRight
               // back to idle animation
               enemyGameObject.anims.play('dryad_idle_left')
               // destroy bullet if it is too far/long
@@ -400,6 +426,7 @@ export default class Level1Scene extends Phaser.Scene {
 
         this.physics.add.collider(this.player, attackTrigger, () => {
           attackTrigger.destroy()
+          this.sound.play('dryad_enemy_base_sound')
           enemy.doAttack()
         })
       }
@@ -446,6 +473,7 @@ export default class Level1Scene extends Phaser.Scene {
             if (!enemy.active || enemy.isDead) {
               return
             }
+            this.sound.play('biglegs_enemy_attack_sound')
             enemy.isAttacking = true
             enemyGameObject.anims.play('biglegs_enemy_jump')
             const playerIsOnRight = this.player.body.x > enemy.x
@@ -495,6 +523,7 @@ export default class Level1Scene extends Phaser.Scene {
             outerTrigger.setOrigin(0, 0)
             outerTrigger.setSize(400, 200)
             this.physics.add.collider(this.player, outerTrigger, () => {
+              this.sound.play('biglegs_enemy_base_sound')
               outerTrigger.destroy()
               enemy.doAttack()
             }, null, this)
@@ -509,6 +538,7 @@ export default class Level1Scene extends Phaser.Scene {
       enemy.takeDamage = function () {
         this.health -= 1
         this.getByName('healthBar').setScale(this.health / this.maxHealth, 1)
+        self.sound.play(this.hurtSoundName)
         if (this.health === 0) {
           this.die()
         }
@@ -517,6 +547,7 @@ export default class Level1Scene extends Phaser.Scene {
       // die function
       enemy.die = function () {
         this.isDead = true
+        self.sound.play(this.deathSoundName)
         this.getByName('enemyGameObject').anims.play(this.deathAnimationName)
         this.getByName('enemyGameObject').once('animationcomplete', () => {
           this.active = false
@@ -525,6 +556,9 @@ export default class Level1Scene extends Phaser.Scene {
           self.score += this.scoreValue
           self.updateHud()
           console.log('ENEMY DIED')
+          if (self.enemies.countActive() === 0) {
+            self.levelCompleted(self)
+          }
         })
       }
     })
@@ -540,11 +574,12 @@ export default class Level1Scene extends Phaser.Scene {
     }
 
     if (enemy.movementType === 'flyer') {
+      const followVelocity = this.difficulty * 20 + 40
       if (enemy.body.touching.left && ground.body.touching.right) {
-        enemy.body.setVelocityX(50)
+        enemy.body.setVelocityX(followVelocity)
         enemy.getByName('enemyGameObject').anims.play('flying_enemy_right')
       } else if (enemy.body.touching.right && ground.body.touching.left) {
-        enemy.body.setVelocityX(-50)
+        enemy.body.setVelocityX(-followVelocity)
         enemy.getByName('enemyGameObject').anims.play('flying_enemy_left')
       }
     }
@@ -615,6 +650,13 @@ export default class Level1Scene extends Phaser.Scene {
         .setDisplaySize(element[2], element[3])
         .setOrigin(0, 0)
         .refreshBody()
+
+      if (config.physics.arcade.debug) {
+        this.add.text(element[0], element[1], 'x:' + element[0].toString() + 'y:' + element[1].toString(), {
+          fontSize: '9px',
+          fill: '#aaa'
+        })
+      }
     })
   }
 
@@ -758,12 +800,23 @@ export default class Level1Scene extends Phaser.Scene {
     this.sound.add('easter_egg')
     this.sound.add('collect_soul_sound')
     this.sound.add('player_dead')
+    this.sound.add('attack_sound')
+    this.sound.add('dryad_enemy_death_sound')
+    this.sound.add('dryad_enemy_hurt_sound')
+    this.sound.add('dryad_enemy_base_sound')
+    this.sound.add('biglegs_enemy_base_sound')
+    this.sound.add('biglegs_enemy_hurt_sound')
+    this.sound.add('biglegs_enemy_death_sound')
+    this.sound.add('biglegs_enemy_attack_sound')
+    this.sound.add('flying_enemy_hurt_sound')
+    this.sound.add('flying_enemy_death_sound')
   }
 
   playerAttack () {
     this.player.isAttacking = true
     this.player.setVelocityX(0)
     this.player.anims.play('player_attack', true)
+    this.sound.play('attack_sound')
     const attackArea = this.add.sprite(this.player.facingDirection == 'left' ? this.player.x - 110 : this.player.x + 9, this.player.y - 19, 'attack_area')
     this.physics.world.enable(attackArea)
     attackArea.isActive = true
@@ -801,5 +854,13 @@ export default class Level1Scene extends Phaser.Scene {
         }, 250)
       }
     }, 400)
+  }
+
+  levelCompleted (self) {
+    console.log('Level Completed')
+    self.add.text(self.player.x - 300, self.player.y, 'LEVEL COMPLETED', {
+      fontSize: '39px',
+      fill: '#aaa'
+    })
   }
 }
