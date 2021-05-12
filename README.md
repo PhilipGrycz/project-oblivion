@@ -1,7 +1,7 @@
 # Project Oblivion
 ## Author: 
 ### Code: Filip Grycz
-### Graphics: Jiri Chalupnik
+### Graphics and sounds: Jiri Chalupnik
 
 ## Installation:
 `npm install` 
